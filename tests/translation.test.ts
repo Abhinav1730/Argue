@@ -1,8 +1,87 @@
-import {it,expect} from "vitest";
-import {OpenRouterAdapter,translationInputSchema} from "../server/translation";
-const input={text:"I agree about the cost. Not the deadline.",sourceLanguage:"en",targetLanguage:"es",segmentId:"s",revision:1,context:[]};
-it("rejects oversized Unicode sources and context",()=>{expect(translationInputSchema.safeParse({...input,text:"😀".repeat(1001)}).success).toBe(false);expect(translationInputSchema.safeParse({...input,context:Array(7).fill("a")}).success).toBe(false);expect(translationInputSchema.safeParse({...input,context:["a".repeat(3001)]}).success).toBe(false)});
-it("never invents a result when credentials are missing",async()=>{await expect(new OpenRouterAdapter({key:"",model:"x:free",providers:["google-ai-studio"]}).translate(input,new AbortController().signal)).rejects.toThrow("unavailable")});
-it("pins free routing and validates structured output",async()=>{let body:Record<string,unknown>={};const fetcher=async(_url:unknown,init?:RequestInit)=>{body=JSON.parse(String(init?.body));return Response.json({choices:[{message:{content:JSON.stringify({status:"translated",text:"Estoy de acuerdo con el costo. No con el plazo.",targetLanguage:"es"})}}]})};const a=new OpenRouterAdapter({key:"test",model:"x:free",providers:["google-ai-studio"]},fetcher as typeof fetch);expect((await a.translate(input,new AbortController().signal)).status).toBe("translated");expect(body.max_tokens).toBe(512);expect(body.provider).toMatchObject({only:["google-ai-studio"],allow_fallbacks:false,max_price:{prompt:0,completion:0}});expect(JSON.stringify(body.messages)).toContain(input.text)});
-it.each(["not json",JSON.stringify({status:"translated",text:"oui",targetLanguage:"fr"}),JSON.stringify({status:"translated",text:"a".repeat(2001),targetLanguage:"es"})])("rejects malformed or wrong-language outputs",async(content)=>{const a=new OpenRouterAdapter({key:"test",model:"x:free",providers:["google-ai-studio"]},(async()=>Response.json({choices:[{message:{content}}]})) as typeof fetch);await expect(a.translate(input,new AbortController().signal)).rejects.toThrow("invalid_output")});
-
+import { it, expect } from "vitest";
+import {
+  OpenRouterAdapter,
+  translationInputSchema,
+} from "../server/translation";
+const input = {
+  text: "I agree about the cost. Not the deadline.",
+  sourceLanguage: "en" as const,
+  targetLanguage: "es" as const,
+  segmentId: "s",
+  revision: 1,
+  context: [],
+};
+it("rejects oversized Unicode sources and context", () => {
+  expect(
+    translationInputSchema.safeParse({ ...input, text: "😀".repeat(1001) })
+      .success,
+  ).toBe(false);
+  expect(
+    translationInputSchema.safeParse({ ...input, context: Array(7).fill("a") })
+      .success,
+  ).toBe(false);
+  expect(
+    translationInputSchema.safeParse({ ...input, context: ["a".repeat(3001)] })
+      .success,
+  ).toBe(false);
+});
+it("never invents a result when credentials are missing", async () => {
+  await expect(
+    new OpenRouterAdapter({
+      key: "",
+      model: "x:free",
+      providers: ["google-ai-studio"],
+    }).translate(input, new AbortController().signal),
+  ).rejects.toThrow("unavailable");
+});
+it("pins free routing and validates structured output", async () => {
+  let body: Record<string, unknown> = {};
+  const fetcher = async (_url: unknown, init?: RequestInit) => {
+    body = JSON.parse(String(init?.body));
+    return Response.json({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              status: "translated",
+              text: "Estoy de acuerdo con el costo. No con el plazo.",
+              targetLanguage: "es",
+            }),
+          },
+        },
+      ],
+    });
+  };
+  const a = new OpenRouterAdapter(
+    { key: "test", model: "x:free", providers: ["google-ai-studio"] },
+    fetcher as typeof fetch,
+  );
+  expect((await a.translate(input, new AbortController().signal)).status).toBe(
+    "translated",
+  );
+  expect(body.max_tokens).toBe(512);
+  expect(body.provider).toMatchObject({
+    only: ["google-ai-studio"],
+    allow_fallbacks: false,
+    max_price: { prompt: 0, completion: 0 },
+  });
+  expect(JSON.stringify(body.messages)).toContain(input.text);
+});
+it.each([
+  "not json",
+  JSON.stringify({ status: "translated", text: "oui", targetLanguage: "fr" }),
+  JSON.stringify({
+    status: "translated",
+    text: "a".repeat(2001),
+    targetLanguage: "es",
+  }),
+])("rejects malformed or wrong-language outputs", async (content) => {
+  const a = new OpenRouterAdapter(
+    { key: "test", model: "x:free", providers: ["google-ai-studio"] },
+    (async () =>
+      Response.json({ choices: [{ message: { content } }] })) as typeof fetch,
+  );
+  await expect(
+    a.translate(input, new AbortController().signal),
+  ).rejects.toThrow("invalid_output");
+});
