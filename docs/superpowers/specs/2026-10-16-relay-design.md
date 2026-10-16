@@ -1,7 +1,7 @@
 # Argue Relay design
 
 Date: 16 October 2026
-Status: Proposed for written review; the Relay visual direction is selected.
+Status: Approved by the user on 16 October 2026; the Relay visual direction is selected.
 
 ## Intended outcome
 
