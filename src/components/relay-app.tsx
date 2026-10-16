@@ -15,6 +15,7 @@ import { TranslationStage } from "./translation-stage";
 import { CallControls } from "./call-controls";
 import { RoomSetup } from "./room-setup";
 import { languages, type ParticipantProfile } from "../shared/protocol";
+import { latestSource, sourceForTranslation } from "../shared/conversation";
 function Settings({
   children,
   onClose,
@@ -73,9 +74,10 @@ export function RelayApp({
   const incoming = room.conversation.translations
     .filter((t) => t.recipientId === self?.id)
     .at(-1);
-  const source = Object.values(room.conversation.sources)
-    .filter((s) => s.participantId === remote?.id)
-    .at(-1);
+  const source = latestSource(room.conversation, remote?.id);
+  const stageSource = incoming
+    ? sourceForTranslation(room.conversation, incoming)
+    : source;
   const remoteSpeaking =
     !!source &&
     !source.committed &&
@@ -226,11 +228,11 @@ export function RelayApp({
               emphasis={live ? undefined : "Not the deadline."}
               original={
                 live
-                  ? source?.text || ""
+                  ? stageSource?.text || ""
                   : "Estoy de acuerdo con el coste. No con el plazo."
               }
               language={
-                live ? source?.language || remote?.language || "es" : "es"
+                live ? stageSource?.language || remote?.language || "es" : "es"
               }
               overlap={live ? room.speaking && remoteSpeaking : !demo.muted}
               captions={captions}

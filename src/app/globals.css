@@ -8,8 +8,22 @@
   --line: #363936;
   --font-fallback: Arial, sans-serif;
 }
-@media(min-width:768px){.relay-shell{height:100svh}.speaker-rail{min-height:0}.speaker-card{min-height:0}}
-@media(min-width:1201px) and (max-width:1599px){.speaker-rail{grid-template-rows:minmax(0,1.06fr) minmax(0,1fr)}}
+@media (min-width: 768px) {
+  .relay-shell {
+    height: 100svh;
+  }
+  .speaker-rail {
+    min-height: 0;
+  }
+  .speaker-card {
+    min-height: 0;
+  }
+}
+@media (min-width: 1201px) and (max-width: 1599px) {
+  .speaker-rail {
+    grid-template-rows: minmax(0, 1.06fr) minmax(0, 1fr);
+  }
+}
 * {
   box-sizing: border-box;
 }
@@ -1211,5 +1225,86 @@ button svg {
     font-size: clamp(65px, 7.15vw, 108px);
   }
 }
-@media(min-width:768px){.relay-shell{height:100svh}.speaker-rail{min-height:0}.speaker-card{min-height:0}} @media(min-width:1201px) and (max-width:1599px){.speaker-rail{grid-template-rows:minmax(0,1.06fr) minmax(0,1fr)}}
-@media(min-width:768px){.speaker-card>.waveform{height:91px;margin-bottom:13px}}
+@media (min-width: 768px) {
+  .relay-shell {
+    height: 100svh;
+  }
+  .speaker-rail {
+    min-height: 0;
+  }
+  .speaker-card {
+    min-height: 0;
+  }
+}
+@media (min-width: 1201px) and (max-width: 1599px) {
+  .speaker-rail {
+    grid-template-rows: minmax(0, 1.06fr) minmax(0, 1fr);
+  }
+}
+@media (min-width: 768px) {
+  .speaker-card > .waveform {
+    height: 91px;
+    margin-bottom: 13px;
+  }
+}
+@media (min-width: 768px) and (max-width: 1200px) {
+  .app-header {
+    height: 100px;
+  }
+  .app-footer {
+    height: 70px;
+  }
+  .call-controls {
+    min-height: 130px;
+  }
+  .conversation-layout {
+    min-height: 600px;
+  }
+  .speaker-card {
+    padding: 22px 18px;
+  }
+  .speaker-card.highlighted {
+    padding: 21px 17px;
+  }
+  .speaker-card > .waveform {
+    height: 60px;
+    margin: 3px 0 8px;
+  }
+  .speaker-language {
+    font-size: 12px;
+    margin-top: 7px;
+  }
+  .translation {
+    font-size: 6.95vw;
+  }
+}
+@media (min-width: 768px) and (max-width: 900px) {
+  .speaker-transcript > p {
+    font-size: 17px;
+  }
+  .speaker-transcript > span {
+    font-size: 12px;
+  }
+}
+@media (min-width: 768px) and (max-width: 1200px) {
+  .translation-stage .stage-content {
+    padding-top: 30px;
+  }
+}
+@media (max-width: 380px) {
+  .app-header {
+    padding: 0 16px;
+    gap: 12px;
+  }
+  .brand {
+    font-size: 34px;
+  }
+  .relay-identity > svg {
+    width: 22px;
+  }
+}
+@media (min-width: 768px) and (max-width: 1200px) {
+  .call-controls {
+    padding: 12px 24px 8px;
+  }
+}

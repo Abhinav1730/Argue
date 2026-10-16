@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   emptyConversation,
   reduceRoomEvent,
+  latestSource,
   type ConversationState,
 } from "../shared/conversation";
 import type {
@@ -129,6 +130,13 @@ export function useRoom() {
   function receiveEvent(event: RoomEvent, live: boolean, epoch: number) {
     if (!guard.current.current(epoch)) return;
     const next = reduceRoomEvent(model.current, event);
+    if (next === model.current) return;
+    if (event.type === "source")
+      resources.current.playback?.invalidate(
+        event.participantId,
+        event.segmentId,
+        event.revision,
+      );
     model.current = next;
     resources.current.seq = next.latestSeq;
     setConversation(next);
@@ -346,6 +354,11 @@ export function useRoom() {
       if (guard.current.current(epoch)) {
         showError(e);
         setStatus("idle");
+        if (invite && e instanceof Error && e.message === "Reconnect expired") {
+          try {
+            sessionStorage.removeItem("relay-resume:" + invite);
+          } catch {}
+        }
       }
       return false;
     } finally {
@@ -522,13 +535,11 @@ export function useRoom() {
   }
   function sendTyped(text: string, correct = false) {
     if (!text.trim()) return;
-    const last = Object.values(model.current.sources)
-      .filter(
-        (s) =>
-          s.participantId === resources.current.join?.participant.id &&
-          s.committed,
-      )
-      .at(-1);
+    const last = latestSource(
+      model.current,
+      resources.current.join?.participant.id,
+      true,
+    );
     void source(
       {
         segmentId: correct && last ? last.segmentId : crypto.randomUUID(),

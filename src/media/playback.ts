@@ -4,6 +4,9 @@ type Unit = {
   text: string;
   targetLanguage: Language;
   createdAt: number;
+  participantId: string;
+  segmentId: string;
+  sourceRevision: number;
 };
 type SynthPort = {
   voices: () => SpeechSynthesisVoice[];
@@ -20,6 +23,25 @@ export class PlaybackController {
   private history: Unit[] = [];
   private current?: Unit;
   private pending?: Unit;
+  private revisions = new Map<string, number>();
+  private eligible(t: Unit) {
+    return (
+      t.sourceRevision >=
+      (this.revisions.get(t.participantId + ":" + t.segmentId) ?? 0)
+    );
+  }
+  invalidate(participantId: string, segmentId: string, revision: number) {
+    const key = participantId + ":" + segmentId;
+    this.revisions.set(key, Math.max(revision, this.revisions.get(key) ?? 0));
+    while (this.revisions.size > 100)
+      this.revisions.delete(this.revisions.keys().next().value!);
+    this.history = this.history.filter((t) => this.eligible(t));
+    if (this.pending && !this.eligible(this.pending)) this.pending = undefined;
+    if (this.current && !this.eligible(this.current)) {
+      this.interrupt();
+      this.resume();
+    }
+  }
   constructor(
     private port: SynthPort,
     private clock = Date.now,
@@ -30,7 +52,7 @@ export class PlaybackController {
     ) => void,
   ) {}
   enqueue(t: Unit, automatic = true) {
-    if (this.disposed) return;
+    if (this.disposed || !this.eligible(t)) return;
     this.history = [...this.history.filter((x) => x.id !== t.id), t]
       .filter((x) => this.clock() - x.createdAt <= 30000)
       .slice(-10);
@@ -42,6 +64,7 @@ export class PlaybackController {
     this.play(t);
   }
   private play(t: Unit) {
+    if (this.disposed || !this.eligible(t)) return;
     const voice = this.port
       .voices()
       .find((v) => v.lang.toLowerCase().split("-")[0] === t.targetLanguage);
@@ -90,7 +113,7 @@ export class PlaybackController {
   }
   replay() {
     const t = this.history
-      .filter((x) => this.clock() - x.createdAt <= 30000)
+      .filter((x) => this.clock() - x.createdAt <= 30000 && this.eligible(x))
       .at(-1);
     if (!t || this.disposed) return false;
     this.interrupt();
@@ -102,6 +125,7 @@ export class PlaybackController {
     this.interrupt();
     this.disposed = true;
     this.history = [];
+    this.revisions.clear();
   }
 }
 export function browserPlayback(

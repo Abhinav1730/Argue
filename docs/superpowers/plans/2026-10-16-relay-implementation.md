@@ -1,6 +1,6 @@
 # Argue Relay Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build the selected Relay interface and an initial working two-person audio interpretation app with a credential-free demo.
 
@@ -57,11 +57,11 @@
 - Events use `id`, `seq`, `participantId`, `segmentId`, `revision`, `sourceTimestamp`, and `createdAt`; translations additionally identify `recipientId`, `targetLanguage`, and `sourceRevision`.
 - Produces `reduceRoomEvent(state: ConversationState, event: RoomEvent): ConversationState` and `useDemo(): DemoController` (state, muted, captionsVisible, replay, leave, reset).
 
-- [ ] Scaffold the requested Next.js stack manually, add dev/build/start/lint/typecheck/test scripts, and retain the ignored local `.env`. Create `.env.example` containing placeholders only.
-- [ ] Write `conversation.test.ts`: duplicate event IDs do not append; revision 2 replaces revision 1; a translation for revision 1 after source revision 2 is ignored; a room sequence gap sets `historyIncomplete`.
-- [ ] Run `npm test -- tests/conversation.test.ts`; confirm failures refer to missing behavior rather than broken tooling.
-- [ ] Implement schemas and reducer, including language enums, Unicode source limits, recipient filtering, and bounded client history. Add an explicit Demo controller with deterministic reference captions and independent control states.
-- [ ] Run the test and `npm run typecheck`; require both to pass. Commit the runnable demo shell and contracts without credentials.
+- [x] Scaffold the requested Next.js stack manually, add dev/build/start/lint/typecheck/test scripts, and retain the ignored local `.env`. Create `.env.example` containing placeholders only.
+- [x] Write `conversation.test.ts`: duplicate event IDs do not append; revision 2 replaces revision 1; a translation for revision 1 after source revision 2 is ignored; a room sequence gap sets `historyIncomplete`.
+- [x] Run `npm test -- tests/conversation.test.ts`; confirm failures refer to missing behavior rather than broken tooling.
+- [x] Implement schemas and reducer, including language enums, Unicode source limits, recipient filtering, and bounded client history. Add an explicit Demo controller with deterministic reference captions and independent control states.
+- [x] Run the test and `npm run typecheck`; require both to pass. Commit the runnable demo shell and contracts without credentials.
 
 ### Task 2: Private room service and signaling
 
@@ -73,12 +73,12 @@
 - `JoinResult` contains `roomId`, invitation URL data, participant token, reconnect token, credential expiry, participant list, and WebSocket URL. `HistoryResult` contains `events`, `latestSeq`, and `historyIncomplete`.
 - API: `POST /api/rooms`, `POST /api/rooms/join`, `POST /api/rooms/renew`, `POST /api/translate`; authenticated WS messages include `resume`, `signal`, `source`, `playback`, and `leave`. Membership identity is derived from the token.
 
-- [ ] Write room tests using an injectable clock: third seat rejected; reconnect credential restores only its reserved seat; reservation expires at 60 seconds; room expires at 24 hours; JWT rejected at 15 minutes; history expires at 10 minutes and caps at 100 events.
-- [ ] Run these tests and confirm expected failures.
-- [ ] Implement cryptographically random invitations, jose-signed participant credentials, separate reconnect secrets, renewal, rate-limited joins, event sequencing, expiry cleanup, and a shared-secret internal HTTP boundary.
-- [ ] Implement WebSocket authentication as the first message, a short authentication deadline, strict message schemas, 16 KiB maximum payload, recipient-scoped signaling/events, socket replacement on reconnect, and no conversation payload logging.
-- [ ] Implement the allowlisted Next.js API proxy. Launch both services with a shared randomly generated process secret when none is configured, loading `.env` on the server; shut down both children on exit. Use hidden Windows child processes.
-- [ ] Add integration tests with two real WebSocket clients: authenticate, exchange offer/answer/ICE and source events, reject forged identities and third join, reconnect with sequence recovery, reject oversized messages. Run focused tests and typecheck; commit.
+- [x] Write room tests using an injectable clock: third seat rejected; reconnect credential restores only its reserved seat; reservation expires at 60 seconds; room expires at 24 hours; JWT rejected at 15 minutes; history expires at 10 minutes and caps at 100 events.
+- [x] Run these tests and confirm expected failures.
+- [x] Implement cryptographically random invitations, jose-signed participant credentials, separate reconnect secrets, renewal, rate-limited joins, event sequencing, expiry cleanup, and a shared-secret internal HTTP boundary.
+- [x] Implement WebSocket authentication as the first message, a short authentication deadline, strict message schemas, 16 KiB maximum payload, recipient-scoped signaling/events, socket replacement on reconnect, and no conversation payload logging.
+- [x] Implement the allowlisted Next.js API proxy. Launch both services with a shared randomly generated process secret when none is configured, loading `.env` on the server; shut down both children on exit. Use hidden Windows child processes.
+- [x] Add integration tests with two real WebSocket clients: authenticate, exchange offer/answer/ICE and source events, reject forged identities and third join, reconnect with sequence recovery, reject oversized messages. Run focused tests and typecheck; commit.
 
 ### Task 3: Bounded server-side translation
 
@@ -90,12 +90,12 @@
 - `TranslationInput` includes source text/language, recipient language, segment/revision, and bounded recent source context. `TranslationResult` is `{ status: 'translated', text: string } | { status: 'needs_context' }`.
 - Structured errors are `unavailable`, `rate_limited`, `queue_full`, `timeout`, `provider_error`, and `invalid_output`; expose safe messages, never keys or provider response bodies.
 
-- [ ] Write tests: missing key returns unavailable; source 1001 code points rejected; context over six segments or 3000 characters rejected; output over 2000 code points rejected; malformed/wrong-language responses rejected; negation/names/numbers remain literal in the request data; stale completion is not published.
-- [ ] Write fake-clock scheduler tests: request 19 within a minute is refused, concurrent work never exceeds two, a room's third queued unit is refused, timeout aborts after 5000 ms, rejected inference is not retried. Run and confirm failures.
-- [ ] Verify the current OpenRouter catalog and provider endpoint policy before pinning `OPENROUTER_MODEL` and `OPENROUTER_ALLOWED_PROVIDERS`. Use a verified `:free` model only; explicit provider allowlist, no paid routing fallback, no privacy-policy bypass. Fail configuration visibly if no suitable endpoint is available.
-- [ ] Implement structured translation prompting with source content treated as data, explicit preservation of uncertainty/concessions/negation, no external tools, `max_tokens: 512`, temperature zero where supported, and `needs_context` support.
-- [ ] Implement the shared scheduler and translation publication only when the stored source revision still matches. Derive recipient and source identity from room membership. Publish generated and delivered states separately from playback acknowledgments.
-- [ ] Run provider-fixture and scheduler tests, typecheck, and a credential-redacted configuration check. Do not claim language accuracy from mocked tests; commit.
+- [x] Write tests: missing key returns unavailable; source 1001 code points rejected; context over six segments or 3000 characters rejected; output over 2000 code points rejected; malformed/wrong-language responses rejected; negation/names/numbers remain literal in the request data; stale completion is not published.
+- [x] Write fake-clock scheduler tests: request 19 within a minute is refused, concurrent work never exceeds two, a room's third queued unit is refused, timeout aborts after 5000 ms, rejected inference is not retried. Run and confirm failures.
+- [x] Verify the current OpenRouter catalog and provider endpoint policy before pinning `OPENROUTER_MODEL` and `OPENROUTER_ALLOWED_PROVIDERS`. Use a verified `:free` model only; explicit provider allowlist, no paid routing fallback, no privacy-policy bypass. Fail configuration visibly if no suitable endpoint is available.
+- [x] Implement structured translation prompting with source content treated as data, explicit preservation of uncertainty/concessions/negation, no external tools, `max_tokens: 512`, temperature zero where supported, and `needs_context` support.
+- [x] Implement the shared scheduler and translation publication only when the stored source revision still matches. Derive recipient and source identity from room membership. Publish generated and delivered states separately from playback acknowledgments.
+- [x] Run provider-fixture and scheduler tests, typecheck, and a credential-redacted configuration check. Do not claim language accuracy from mocked tests; commit.
 
 ### Task 4: Independent browser media and interruption
 
@@ -108,13 +108,13 @@
 - `VadController.start(stream: MediaStream, onSpeechStart: () => void): Promise<void>`, `dispose(): Promise<void>`; consumes the existing local microphone stream.
 - `useRoom(): RoomController` exposes create/join, startAudio, sendTyped, mute, captions, interpretation, replay, leave, status, state, capabilities, and error.
 
-- [ ] Write fake-synthesis tests: interruption cancels immediately and increments epoch; old completion cannot mark new speech played; only committed/current revisions speak; missing matching voice leaves captions available; bounded queue does not auto-drain unheard interruptions.
-- [ ] Write lifecycle tests: leave stops every track/socket/controller; late recognition/provider/renewal results cannot mutate a later room; recognition end/error loops use bounded restart with backoff, and permission denial never triggers repeated prompts. Run and confirm failures.
-- [ ] Implement peer negotiation with collision-safe polite/impolite roles, trickle ICE, configurable ICE servers, connection status, and distinct original-audio versus interpretation controls. Capture only on explicit user action.
-- [ ] Implement browser recognition with runtime capability detection, supported language settings, interim captions, stable final revisions, typed corrections, and explicit cloud-processing disclosure. Never append synthetic speech as source.
-- [ ] Implement Silero local VAD with same-origin packaged ONNX/worklet assets and reduced-frame React updates. Speech onset stops the listener's generated audio locally; continue recognition/source events. If VAD fails, show degraded interruption support and allow manual cancellation; do not silently promise reliable detection.
-- [ ] Implement voice selection only for the selected language, user-gesture playback unlocking, epoch cancellation, recent-text replay restricted to 30 seconds, renewal, reconnect sequence recovery, and cleanup. Recommend headphones and default original remote audio to muted while interpretation is on to reduce acoustic feedback; explain that physical echo isolation remains a live-test limitation.
-- [ ] Run focused tests and typecheck; commit.
+- [x] Write fake-synthesis tests: interruption cancels immediately and increments epoch; old completion cannot mark new speech played; only committed/current revisions speak; missing matching voice leaves captions available; bounded queue does not auto-drain unheard interruptions.
+- [x] Write lifecycle tests: leave stops every track/socket/controller; late recognition/provider/renewal results cannot mutate a later room; recognition end/error loops use bounded restart with backoff, and permission denial never triggers repeated prompts. Run and confirm failures.
+- [x] Implement peer negotiation with collision-safe polite/impolite roles, trickle ICE, configurable ICE servers, connection status, and distinct original-audio versus interpretation controls. Capture only on explicit user action.
+- [x] Implement browser recognition with runtime capability detection, supported language settings, interim captions, stable final revisions, typed corrections, and explicit cloud-processing disclosure. Never append synthetic speech as source.
+- [x] Implement Silero local VAD with same-origin packaged ONNX/worklet assets and reduced-frame React updates. Speech onset stops the listener's generated audio locally; continue recognition/source events. If VAD fails, show degraded interruption support and allow manual cancellation; do not silently promise reliable detection.
+- [x] Implement voice selection only for the selected language, user-gesture playback unlocking, epoch cancellation, recent-text replay restricted to 30 seconds, renewal, reconnect sequence recovery, and cleanup. Recommend headphones and default original remote audio to muted while interpretation is on to reduce acoustic feedback; explain that physical echo isolation remains a live-test limitation.
+- [x] Run focused tests and typecheck; commit.
 
 ### Task 5: Faithful Relay interface and complete room journey
 
@@ -125,11 +125,11 @@
 - `Waveform({ active, analyser?, seed, reducedMotion })` draws deterministic demo or measured live amplitudes on canvas without per-frame React state.
 - `RoomSetup` collects name, source/listening languages, processing consent, invitation, and capability status before live capture.
 
-- [ ] Implement desktop composition at 1487 × 1058: approximately 460 px rail, stacked participant cards, large cream/lime caption stage, long waveform, original text, circular toolbar, and restrained footer. Load the specified fonts using Next font support.
-- [ ] Implement responsive layouts down to 320 px, readable long translations, non-Latin text, accessible control names, visible focus, and reduced-motion rendering. Use Phosphor icons and real canvas signal visualization.
-- [ ] Wire mic, captions, interpretation, replay, leave, demo reset, create/join, language settings, copy invitation, and typed correction. Display connecting, ready, speaking, overlap, muted, reconnecting, unavailable, and ended states without turn locking.
-- [ ] Add flow tests: no media request in demo; live missing-provider error retains source captions; caption toggle does not stop capture; leave returns an ended view; setup consent is required before live capture. Confirm failing behavior first, implement, and rerun.
-- [ ] Run lint, typecheck, focused tests, and build. Commit the complete interface.
+- [x] Implement desktop composition at 1487 × 1058: approximately 460 px rail, stacked participant cards, large cream/lime caption stage, long waveform, original text, circular toolbar, and restrained footer. Load the specified fonts using Next font support.
+- [x] Implement responsive layouts down to 320 px, readable long translations, non-Latin text, accessible control names, visible focus, and reduced-motion rendering. Use Phosphor icons and real canvas signal visualization.
+- [x] Wire mic, captions, interpretation, replay, leave, demo reset, create/join, language settings, copy invitation, and typed correction. Display connecting, ready, speaking, overlap, muted, reconnecting, unavailable, and ended states without turn locking.
+- [x] Add flow tests: no media request in demo; live missing-provider error retains source captions; caption toggle does not stop capture; leave returns an ended view; setup consent is required before live capture. Confirm failing behavior first, implement, and rerun.
+- [x] Run lint, typecheck, focused tests, and build. Commit the complete interface.
 
 ### Task 6: Integration verification, design QA, and local handoff
 
@@ -137,15 +137,15 @@
 
 **Interfaces:** Consumes all prior tasks. Produces a documented local app and recorded evidence rather than new runtime contracts.
 
-- [ ] Document `npm install`, `npm run dev`, `npm run build`, `npm start`, configured ports, server-only environment variables, OpenRouter constraints, ICE/TURN/HTTPS requirements, browser limitations, ephemeral retention, processing providers, and local open-model extension points.
-- [ ] Include Mermaid architecture and interruption flowcharts. Distinguish tested integration behavior from unmeasured bilingual accuracy and real internet latency. Explain local `.env` is ignored and not automatically copied to another worktree.
-- [ ] Read Product Design design-QA instructions. Start the actual app, inspect the same demo state at 1487 × 1058, compare with the saved selected image, record screenshots and findings, and fix visual P0/P1/P2 issues until the required QA result passes. Inspect 1024 px, 320 px, focus navigation, reduced motion, long Hindi/Spanish captions, and all controls.
-- [ ] Verify two browser contexts join a real room and exchange synthetic source/translation/signaling fixtures; verify a third is rejected. Exercise actual configured translation only with synthetic short text and report its result without exposing credentials. Do not claim real microphone or cross-network quality from fixtures.
-- [ ] Run `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`; require successful exits. Perform one fresh whole-branch review using the required execution skill's reviewer workflow, fix material findings, and repeat only affected checks.
-- [ ] Commit code/docs with `.env` still ignored, keep the local preview running, open the app in Codex, and hand off its clickable URL with concise verified behavior and remaining service limitations. Do not push, merge, or deploy unless requested.
+- [x] Document `npm install`, `npm run dev`, `npm run build`, `npm start`, configured ports, server-only environment variables, OpenRouter constraints, ICE/TURN/HTTPS requirements, browser limitations, ephemeral retention, processing providers, and local open-model extension points.
+- [x] Include Mermaid architecture and interruption flowcharts. Distinguish tested integration behavior from unmeasured bilingual accuracy and real internet latency. Explain local `.env` is ignored and not automatically copied to another worktree.
+- [x] Read Product Design design-QA instructions. Start the actual app, inspect the same demo state at 1487 × 1058, compare with the saved selected image, record screenshots and findings, and fix visual P0/P1/P2 issues until the required QA result passes. Inspect 1024 px, 320 px, focus navigation, reduced motion, long Hindi/Spanish captions, and all controls.
+- [x] Verify two browser contexts join a real room and exchange synthetic source/translation/signaling fixtures; verify a third is rejected. Exercise actual configured translation only with synthetic short text and report its result without exposing credentials. Do not claim real microphone or cross-network quality from fixtures.
+- [x] Run `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`; require successful exits. Perform one fresh whole-branch review using the required execution skill's reviewer workflow, fix material findings, and repeat only affected checks.
+- [x] Commit code/docs with `.env` still ignored, keep the local preview running, open the app in Codex, and hand off its clickable URL with concise verified behavior and remaining service limitations. Do not push, merge, or deploy unless requested.
 
 ## Self-review
 
 Spec coverage checked across visual layout (Tasks 1/5/6), room/privacy/event boundaries (Tasks 1/2), provider behavior and quotas (Task 3), local media/interruption/delivery (Task 4), and full flow verification (Tasks 5/6). Each Review Focus item has a named owning test. Shared interfaces use the same names across tasks. This is one integrated initial release; work proceeds in order because transport, media, and UI share the event contracts.
 
-Execution is pending user review of this plan and selection of Native or Subagent-driven implementation.
+Execution completed in Native mode after user approval. One independent review found four Important issues, all fixed with regression coverage. All 40 tests, lint, TypeScript and production build passed. Live OpenRouter returned 429; real audio/bilingual/network reliability remains unverified. Required design QA passed; an optional compact-height capture was blocked by browser sleep suspension. See docs/build-notes.md and design-qa.md for evidence and limitations.

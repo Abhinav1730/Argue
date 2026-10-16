@@ -13,6 +13,27 @@ export const emptyConversation = (): ConversationState => ({
   latestSeq: 0,
   historyIncomplete: false,
 });
+export function latestSource(
+  state: ConversationState,
+  participantId?: string,
+  committedOnly = false,
+): SourceSegment | undefined {
+  if (!participantId) return undefined;
+  return Object.values(state.sources)
+    .filter(
+      (s) =>
+        s.participantId === participantId && (!committedOnly || s.committed),
+    )
+    .sort((a, b) => b.seq - a.seq)[0];
+}
+export function sourceForTranslation(
+  state: ConversationState,
+  translation: Translation,
+): SourceSegment | undefined {
+  const source =
+    state.sources[translation.participantId + ":" + translation.segmentId];
+  return source?.revision === translation.sourceRevision ? source : undefined;
+}
 export function reduceRoomEvent(
   state: ConversationState,
   event: RoomEvent,

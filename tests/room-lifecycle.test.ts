@@ -2,7 +2,78 @@
 import { it, expect, vi, afterEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { useRoom } from "../src/hooks/use-room";
-it("does not start media controllers when audio resume finishes after leave",async()=>{const {result}=setup();let resume!:()=>void;let stopped=0;let closed=0;vi.mocked(navigator.mediaDevices.getUserMedia).mockResolvedValue({getTracks:()=>[{stop:()=>stopped++}]} as unknown as MediaStream);vi.stubGlobal("AudioContext",class {resume(){return new Promise<void>(r=>resume=r)}createAnalyser(){return {fftSize:0}}createMediaStreamSource(){return {connect(){}}}async close(){closed++}});await act(async()=>{await result.current.openRoom({name:"Asha",language:"hi",listeningLanguage:"en"})});let task!:Promise<void>;await act(async()=>{task=result.current.startAudio();await Promise.resolve()});act(()=>result.current.leave());await act(async()=>{resume();await task});expect(result.current.analyser).toBeUndefined();expect(stopped).toBe(1);expect(closed).toBe(1);expect(result.current.status).toBe("ended")});
+it("allows a fresh join after a cached reconnect credential expires", async () => {
+  const { result } = setup();
+  sessionStorage.setItem("relay-resume:expired-invite", "old-resume");
+  const requests: Record<string, unknown>[] = [];
+  vi.stubGlobal("fetch", async (_url: unknown, options: RequestInit) => {
+    requests.push(JSON.parse(String(options.body)));
+    return requests.length === 1
+      ? Response.json({ error: "Reconnect expired" }, { status: 400 })
+      : Response.json(join);
+  });
+  await act(async () => {
+    await result.current.openRoom(
+      { name: "Asha", language: "hi", listeningLanguage: "en" },
+      "expired-invite",
+    );
+  });
+  await act(async () => {
+    await result.current.openRoom(
+      { name: "Asha", language: "hi", listeningLanguage: "en" },
+      "expired-invite",
+    );
+  });
+  expect(requests[0].resumeToken).toBe("old-resume");
+  expect(requests[1]).not.toHaveProperty("resumeToken");
+});
+it("does not start media controllers when audio resume finishes after leave", async () => {
+  const { result } = setup();
+  let resume!: () => void;
+  let stopped = 0;
+  let closed = 0;
+  vi.mocked(navigator.mediaDevices.getUserMedia).mockResolvedValue({
+    getTracks: () => [{ stop: () => stopped++ }],
+  } as unknown as MediaStream);
+  vi.stubGlobal(
+    "AudioContext",
+    class {
+      resume() {
+        return new Promise<void>((r) => (resume = r));
+      }
+      createAnalyser() {
+        return { fftSize: 0 };
+      }
+      createMediaStreamSource() {
+        return { connect() {} };
+      }
+      async close() {
+        closed++;
+      }
+    },
+  );
+  await act(async () => {
+    await result.current.openRoom({
+      name: "Asha",
+      language: "hi",
+      listeningLanguage: "en",
+    });
+  });
+  let task!: Promise<void>;
+  await act(async () => {
+    task = result.current.startAudio();
+    await Promise.resolve();
+  });
+  act(() => result.current.leave());
+  await act(async () => {
+    resume();
+    await task;
+  });
+  expect(result.current.analyser).toBeUndefined();
+  expect(stopped).toBe(1);
+  expect(closed).toBe(1);
+  expect(result.current.status).toBe("ended");
+});
 vi.mock("../src/media/vad", () => ({
   VadController: class {
     async start() {}

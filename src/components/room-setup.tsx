@@ -69,7 +69,12 @@ export function RoomSetup({
     }
   }
   return (
-    <dialog ref={ref} className="setup-dialog" onCancel={onClose} aria-label="Private room setup">
+    <dialog
+      ref={ref}
+      className="setup-dialog"
+      onCancel={onClose}
+      aria-label="Private room setup"
+    >
       <button
         className="close-button"
         onClick={onClose}

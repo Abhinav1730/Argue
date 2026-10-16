@@ -69,7 +69,11 @@ export function CallControls({
             onClick={onLeave}
             aria-label="Leave room"
           >
-            <PhoneIcon size={38} weight="fill" style={{transform:"rotate(135deg)"}}/>
+            <PhoneIcon
+              size={38}
+              weight="fill"
+              style={{ transform: "rotate(135deg)" }}
+            />
           </button>
           <span>Leave</span>
         </div>

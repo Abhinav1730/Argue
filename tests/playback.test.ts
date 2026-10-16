@@ -1,5 +1,23 @@
 import { it, expect } from "vitest";
 import { PlaybackController } from "../src/media/playback";
+it("removes corrected units from the pending speech queue", () => {
+  const { p, utterances } = fixture();
+  p.enqueue({ ...t, id: "busy", segmentId: "other", text: "Busy" });
+  p.enqueue(t);
+  p.invalidate("a", "s", 2);
+  utterances[0].onend?.();
+  expect(utterances.map((u) => u.text)).toEqual(["Busy"]);
+});
+it("cancels corrected speech and prevents obsolete replay or late delivery", () => {
+  const { p, utterances } = fixture();
+  p.enqueue(t);
+  p.invalidate("a", "s", 2);
+  expect(p.replay()).toBe(false);
+  p.enqueue(t);
+  expect(utterances).toHaveLength(1);
+  p.enqueue({ ...t, id: "new", sourceRevision: 2, text: "Corrected" });
+  expect(utterances.at(-1)?.text).toBe("Corrected");
+});
 it("retains a caption for explicit replay when automatic speech is off", () => {
   const { p, utterances } = fixture();
   p.enqueue(t, false);
@@ -26,6 +44,9 @@ function fixture() {
 }
 const t = {
   id: "t",
+  participantId: "a",
+  segmentId: "s",
+  sourceRevision: 1,
   text: "Not the deadline.",
   targetLanguage: "en",
   createdAt: 1000,

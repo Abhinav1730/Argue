@@ -42,11 +42,22 @@ export function createRoomServer(options: Options) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
   };
   const broadcast = (roomId: string, data: unknown) => {
-    for (const s of sockets.values()) if (s.roomId === roomId) send(s.ws, data);
+    for (const [id, s] of sockets)
+      if (s.roomId === roomId && eligible(id, s)) send(s.ws, data);
   };
+  function eligible(id: string, s: { roomId: string; expiresAt: number }) {
+    try {
+      return (
+        Date.now() < s.expiresAt &&
+        store.member(s.roomId, id).participant.connected
+      );
+    } catch {
+      return false;
+    }
+  }
   const publish = (event: RoomEvent) => {
     for (const [id, s] of sockets)
-      if (s.roomId === event.roomId) {
+      if (s.roomId === event.roomId && eligible(id, s)) {
         if (event.type !== "translation" || event.recipientId === id)
           send(s.ws, { type: "event", event });
         else send(s.ws, { type: "cursor", seq: event.seq });
@@ -62,6 +73,15 @@ export function createRoomServer(options: Options) {
     token: await signParticipant(r.roomId, r.participant.id, options.secret),
     expiresAt: Date.now() + 900000,
   });
+  function detach(id: string, ws: WebSocket) {
+    const owned = sockets.get(id);
+    if (owned?.ws !== ws) return;
+    sockets.delete(id);
+    store.disconnect(id);
+    try {
+      membership(owned.roomId);
+    } catch {}
+  }
   const auth = async (token: string) => {
     const a = await verifyParticipant(token, options.secret);
     store.member(a.roomId, a.participantId);
@@ -352,12 +372,20 @@ export function createRoomServer(options: Options) {
           membership(a.roomId);
           return;
         }
-        if (!identity || Date.now() >= identity.expiresAt)
+        if (
+          !identity ||
+          Date.now() >= identity.expiresAt ||
+          sockets.get(identity.participantId)?.ws !== ws
+        )
           throw Error("Authentication expired");
         store.member(identity.roomId, identity.participantId);
         if (m.type === "signal") {
           for (const [id, s] of sockets)
-            if (id !== identity.participantId && s.roomId === identity.roomId)
+            if (
+              id !== identity.participantId &&
+              s.roomId === identity.roomId &&
+              eligible(id, s)
+            )
               send(s.ws, {
                 type: "signal",
                 participantId: identity.participantId,
@@ -404,13 +432,7 @@ export function createRoomServer(options: Options) {
     });
     ws.on("close", () => {
       clearTimeout(deadline);
-      if (identity && sockets.get(identity.participantId)?.ws === ws) {
-        sockets.delete(identity.participantId);
-        store.disconnect(identity.participantId);
-        try {
-          membership(identity.roomId);
-        } catch {}
-      }
+      if (identity) detach(identity.participantId, ws);
     });
   });
   const sweep = setInterval(() => {
@@ -419,8 +441,8 @@ export function createRoomServer(options: Options) {
       if (value.until < Date.now()) joins.delete(key);
     for (const [id, s] of sockets) {
       if (Date.now() >= s.expiresAt || !store.rooms.has(s.roomId)) {
+        detach(id, s.ws);
         s.ws.close(1008, "Session expired");
-        sockets.delete(id);
       } else s.ws.ping();
     }
   }, 30000);

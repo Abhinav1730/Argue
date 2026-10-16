@@ -99,7 +99,7 @@ export class RoomStore {
           this.clock() - seat.disconnectedAt > 60000)
       )
         throw Error("Reconnect expired");
-      seat.disconnectedAt = this.clock();
+      // A resume HTTP request does not transfer or disconnect socket ownership.
       return this.result(r, seat);
     }
     r.seats = r.seats.filter(

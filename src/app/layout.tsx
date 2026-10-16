@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Anton, Inter_Tight, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import "./compact.css";
 const display = Anton({
   weight: "400",
   subsets: ["latin"],
