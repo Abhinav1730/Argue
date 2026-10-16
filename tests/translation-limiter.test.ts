@@ -1,0 +1,6 @@
+import {it,expect,vi} from "vitest";
+import {TranslationScheduler} from "../server/translation-limiter";
+it("caps inference at 18 requests per minute",async()=>{const s=new TranslationScheduler();for(let i=0;i<18;i++)await s.submit("r",async()=>i);await expect(s.submit("r",async()=>0)).rejects.toThrow("rate_limited")});
+it("limits concurrency and per-room waiting units",async()=>{const s=new TranslationScheduler();const releases:Array<()=>void>=[];const work=()=>new Promise<void>(r=>releases.push(r));const p=[s.submit("r",work),s.submit("r",work),s.submit("r",work),s.submit("r",work)];await expect(s.submit("r",work)).rejects.toThrow("queue_full");expect(releases).toHaveLength(2);releases[0]();await new Promise(r=>setTimeout(r,1));expect(releases).toHaveLength(3);releases[1]();await new Promise(r=>setTimeout(r,1));releases[2]();await new Promise(r=>setTimeout(r,1));releases[3]();await Promise.all(p)});
+it("times out without retrying even if adapter ignores abort",async()=>{vi.useFakeTimers();const s=new TranslationScheduler();let calls=0;const p=s.submit("r",async()=>{calls++;return new Promise(()=>{})});const result=expect(p).rejects.toThrow("timeout");await vi.advanceTimersByTimeAsync(5000);await result;expect(calls).toBe(1);vi.useRealTimers()});
+
