@@ -2,6 +2,26 @@
 
 A Next.js + TypeScript alpha for two people who speak different languages. The selected Relay screen is implemented as a working, explicitly labeled demo; private rooms use real signaling and separate WebRTC audio tracks.
 
+## Deploy the assignment prototype to Vercel
+
+One Vercel project hosts Next.js, API routes and the `/api/relay` WebSocket endpoint. No Redis, database, Render service or separate backend URL is used. Import this repository's `main` branch with the Next.js preset, root `./`, install `npm ci`, build `npm run build`, and default output settings. `vercel.json` enables Fluid Compute and places functions in Mumbai (`bom1`). WebSockets require Vercel's WebSocket-capable runtime; plain `next dev` retains the existing local room service.
+
+Add these **server-only** variables in Vercel Project Settings → Environment Variables for Production (and Preview if you want live preview rooms):
+
+| Variable | Value |
+| --- | --- |
+| `OPENROUTER_API_KEY` | Your OpenRouter key |
+| `ROOM_SERVICE_SECRET` | A random secret of at least 32 characters; keep it stable between deployments |
+| `OPENROUTER_MODEL` | `google/gemma-4-31b-it:free` (current configured default) |
+| `OPENROUTER_ALLOWED_PROVIDERS` | `google-ai-studio` |
+| `OPENROUTER_DATA_COLLECTION` | `deny` |
+
+The last three have defaults, so only the first two are required. Generate the room secret locally with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` and paste the output directly into Vercel. Never add `NEXT_PUBLIC_` to either secret. Leave `NEXT_PUBLIC_ROOM_WS_URL` empty: HTTPS pages automatically connect to `wss://<your-domain>/api/relay`. Do not set `ROOM_SERVICE_URL`, `ROOM_PORT` or `PORT` on Vercel. Redeploy after setting environment variables. You can deploy the credential-free Demo without these secrets; live rooms show a configuration error until the secret is configured.
+
+**Prototype limitation accepted for the assignment:** room state, socket membership, quota counters and translation queues live only in one warm function instance. Room creation/join/renewal/translation use request/reply messages on each participant's existing socket, so that participant's requests stay with their socket. However, two participants are not guaranteed to reach the same instance. A different instance, restart, deployment or function-duration expiry can lose the room; create a new room and retry. The endpoint has a 300-second function duration. The 24-hour room expiry is an in-memory upper bound, not a guarantee that Vercel keeps a room alive. This mode deliberately does not provide durable or reliably scaled rooms. See [Vercel's WebSocket lifecycle and state guidance](https://vercel.com/docs/functions/websockets).
+
+The translation provider can still return quota errors. WebRTC across restrictive networks can still require a TURN service; typed source/translation does not depend on peer audio. This deployment does not provision TURN or claim production reliability.
+
 ## Run locally
 
 Requires Node 20.9 or newer (developed with Node 24.14.1).
@@ -36,8 +56,8 @@ For a production-mode local check: `npm run build`, then stop dev and run `npm s
 | `OPENROUTER_ALLOWED_PROVIDERS` | Explicit endpoint slugs; default `google-ai-studio` |
 | `OPENROUTER_DATA_COLLECTION` | Default `deny`; provider policy is never relaxed automatically |
 | `ROOM_PORT`, `PORT` | Room service and frontend ports |
-| `ROOM_SERVICE_SECRET` | Internal API/JWT secret; launcher generates one if absent |
-| `NEXT_PUBLIC_ROOM_WS_URL` | Public WS/WSS URL; default uses the page hostname and port 8787 |
+| `ROOM_SERVICE_SECRET` | Private API/JWT secret; required on Vercel (32+ characters); local launcher generates one if absent |
+| `NEXT_PUBLIC_ROOM_WS_URL` | Optional public WS/WSS override; HTTPS defaults to same-origin `/api/relay`, local HTTP uses port 8787 |
 | `NEXT_PUBLIC_ICE_SERVERS` | JSON WebRTC STUN/TURN configuration; default empty, suitable for local peer checks |
 | `ROOM_ALLOWED_ORIGINS` | Optional comma-separated browser origins when frontend and WS use different hostnames |
 | `TRANSLATION_RPM` | Default 18 requests/minute, shared by all rooms |
@@ -77,7 +97,7 @@ flowchart TD
   T --> F["Speech ends: allow future units"]
 ```
 
-Next.js requests do not own long-lived sockets. The room process owns ordered events, membership, and inference capacity; it can be deployed as a separate persistent Node service. A serverless-only deployment needs a different transport backend.
+The diagram above describes local HTTP development. On Vercel, the Next.js `/api/relay` route owns sockets through `@vercel/functions`; browser requests and live events share the same connection and in-memory room service. There is no localhost HTTP proxy in the deployed conversation path. Existing local launchers and HTTP tests remain available for development.
 
 ## Privacy and bounds
 

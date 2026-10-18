@@ -1,5 +1,17 @@
 # Relay build and verification notes
 
+## 18 October 2026 — single-project Vercel assignment mode
+
+The user explicitly requested a working prototype with Next.js, API and WebSockets on one Vercel project and declined Redis or a separate backend host. No Redis integration had been implemented; dependency inspection confirms no `redis`, `ioredis` or `@upstash/redis` installed.
+
+Implemented native `@vercel/functions` WebSocket upgrades at `/api/relay` with a 16 KiB payload cap, origin checks and a 300-second maximum duration. HTTPS clients create/join/renew/translate using correlated request/reply messages on their existing socket; existing authentication, room and translation contracts are reused without localhost HTTP calls. Local HTTP development remains compatible.
+
+Verification: 45 tests passed in 14 files using `npm test -- --pool=threads --maxWorkers=1`; TypeScript, lint and production build passed. The built routes include `/api/relay`. A real two-client socket test covers creation, joining, authentication, translation, third-seat rejection and forged credentials. Browser-bridge tests cover connecting/open/closed states and listener cleanup. The secret scan reports a configured local key, ignored/untracked `.env` and no key in browser assets.
+
+One read-only independent review found no Critical, Important or actionable Minor issues. Accepted/declined scope: cross-instance routing, in-memory room loss and function-duration expiry are intentional prototype limitations; provider capacity, TURN and actual Vercel runtime WebSocket availability require deployment testing. Mocked route tests establish adapter wiring, not deployed platform support. No external project, Redis resource or public deployment was created as part of this change. See README for exact Vercel credentials and settings.
+
+The historical notes below describe the original local build.
+
 User approved the written design and Native execution on 16 October 2026. Work is on `codex/relay` in the attached worktree; main, the remote and public hosting are unchanged.
 
 ## Independent review and fixes

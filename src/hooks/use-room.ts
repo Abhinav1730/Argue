@@ -19,6 +19,7 @@ import { RtcController } from "../media/rtc";
 import { RecognitionController } from "../media/recognition";
 import { browserPlayback, type PlaybackController } from "../media/playback";
 import { VadController } from "../media/vad";
+import { socketRequest } from "../media/socket-rpc";
 type Status = "idle" | "connecting" | "ready" | "reconnecting" | "ended";
 type Resources = {
   join?: JoinResult;
@@ -98,6 +99,17 @@ export function useRoom() {
     if (s?.readyState === WebSocket.OPEN) s.send(JSON.stringify(data));
   }
   async function api(path: string, body: unknown, token?: string) {
+    if (location.protocol === "https:" || process.env.NEXT_PUBLIC_ROOM_WS_URL) {
+      const r = resources.current;
+      if (!r.socket || r.socket.readyState >= WebSocket.CLOSING)
+        r.socket = new WebSocket(roomSocketUrl());
+      return (await socketRequest(
+        r.socket,
+        path,
+        body,
+        token,
+      )) as JoinResult & { status?: string };
+    }
     const response = await fetch("/api/" + path, {
       method: "POST",
       headers: {
@@ -110,6 +122,14 @@ export function useRoom() {
     const data = await response.json();
     if (!response.ok) throw Error(data.error || "Request failed");
     return data;
+  }
+  function roomSocketUrl() {
+    return (
+      process.env.NEXT_PUBLIC_ROOM_WS_URL ||
+      (location.protocol === "https:"
+        ? "wss://" + location.host + "/api/relay"
+        : "ws://" + location.hostname + ":8787")
+    );
   }
   const messages: Record<string, string> = {
     unavailable:
@@ -209,12 +229,10 @@ export function useRoom() {
     const r = resources.current;
     const j = r.join;
     if (!j || !guard.current.current(epoch)) return;
-    const wsUrl =
-      process.env.NEXT_PUBLIC_ROOM_WS_URL ||
-      (location.protocol === "https:" ? "wss://" : "ws://") +
-        location.hostname +
-        ":8787";
-    const socket = new WebSocket(wsUrl);
+    const socket =
+      r.socket && r.socket.readyState <= WebSocket.OPEN
+        ? r.socket
+        : new WebSocket(roomSocketUrl());
     r.socket = socket;
     socket.onopen = () => {
       if (!guard.current.current(epoch)) {
@@ -285,6 +303,7 @@ export function useRoom() {
         Math.min(1000 * 2 ** r.attempts, 10000),
       );
     };
+    if (socket.readyState === WebSocket.OPEN) socket.onopen(new Event("open"));
   }
   async function openRoom(profile: ParticipantProfile, invite?: string) {
     dispose();

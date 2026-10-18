@@ -1,4 +1,9 @@
-import { createServer } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type IncomingHttpHeaders,
+} from "node:http";
+import { Readable } from "node:stream";
 import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
 import { RoomStore } from "./rooms";
@@ -18,6 +23,17 @@ type Options = {
   model?: string;
   providers?: string[];
   adapter?: TranslationAdapter;
+};
+type RoomRequest = AsyncIterable<string | Uint8Array> & {
+  method?: string;
+  url?: string;
+  headers: IncomingHttpHeaders;
+  socket: { remoteAddress?: string };
+};
+type RoomResponse = {
+  statusCode: number;
+  setHeader(name: string, value: string): unknown;
+  end(body: string): unknown;
 };
 export function createRoomServer(options: Options) {
   if (!options.secret) throw Error("ROOM_SERVICE_SECRET required");
@@ -87,7 +103,7 @@ export function createRoomServer(options: Options) {
     store.member(a.roomId, a.participantId);
     return a;
   };
-  const http = createServer(async (req, res) => {
+  const handleHttp = async (req: RoomRequest, res: RoomResponse) => {
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Cache-Control", "no-store");
     const reply = (status: number, data: unknown) => {
@@ -303,9 +319,10 @@ export function createRoomServer(options: Options) {
         { error: safe },
       );
     }
-  });
+  };
+  const http = createServer(handleHttp);
   const wss = new WebSocketServer({ server: http, maxPayload: 16384 });
-  wss.on("connection", (ws, request) => {
+  const attachSocket = (ws: WebSocket, request: IncomingMessage) => {
     const origin = request.headers.origin;
     const host = request.headers.host;
     if (origin) {
@@ -329,6 +346,7 @@ export function createRoomServer(options: Options) {
     }, 5000);
     ws.on("error", () => {});
     ws.on("message", async (data) => {
+      let rpcId: string | undefined;
       try {
         if (Date.now() - windowAt > 1000) {
           count = 0;
@@ -338,7 +356,57 @@ export function createRoomServer(options: Options) {
           ws.close(1008, "Rate limited");
           return;
         }
-        const m = clientMessageSchema.parse(JSON.parse(String(data)));
+        const raw = JSON.parse(String(data));
+        if (raw.type === "rpc") {
+          const m = z
+            .object({
+              id: z.string().min(1).max(80),
+              path: z.enum(["rooms", "rooms/join", "rooms/renew", "translate"]),
+              body: z.unknown(),
+              token: z.string().max(2048).optional(),
+            })
+            .parse(raw);
+          rpcId = m.id;
+          if (m.path !== "rooms" && m.path !== "rooms/join") {
+            if (!identity || sockets.get(identity.participantId)?.ws !== ws)
+              throw Error("Authentication required");
+            const owner = await auth(m.token || "");
+            if (
+              owner.participantId !== identity.participantId ||
+              owner.roomId !== identity.roomId
+            )
+              throw Error("Identity change");
+          } else if (identity) throw Error("Already joined");
+          // Invoke the existing HTTP contract in-process. No localhost request,
+          // listening port, or second function instance is involved.
+          const req = Object.assign(
+            Readable.from([JSON.stringify(m.body ?? {})]),
+            {
+              method: "POST",
+              url: "/" + m.path,
+              headers: {
+                "x-room-secret": options.secret,
+                authorization: "Bearer " + (m.token || ""),
+              },
+              socket: request.socket,
+            },
+          );
+          const res = {
+            statusCode: 200,
+            setHeader() {},
+            end(body: string) {
+              send(ws, {
+                type: "rpc-result",
+                id: m.id,
+                status: this.statusCode,
+                body: JSON.parse(body),
+              });
+            },
+          };
+          await handleHttp(req, res);
+          return;
+        }
+        const m = clientMessageSchema.parse(raw);
         if (m.type === "auth") {
           const a = await auth(m.token);
           if (
@@ -424,6 +492,15 @@ export function createRoomServer(options: Options) {
           ws.close();
         }
       } catch {
+        if (rpcId) {
+          send(ws, {
+            type: "rpc-result",
+            id: rpcId,
+            status: 400,
+            body: { error: "Invalid, obsolete, or unauthorized request" },
+          });
+          return;
+        }
         send(ws, {
           type: "error",
           error: "Invalid, obsolete, or unauthorized event",
@@ -434,7 +511,8 @@ export function createRoomServer(options: Options) {
       clearTimeout(deadline);
       if (identity) detach(identity.participantId, ws);
     });
-  });
+  };
+  wss.on("connection", attachSocket);
   const sweep = setInterval(() => {
     store.sweep();
     for (const [key, value] of joins)
@@ -449,6 +527,8 @@ export function createRoomServer(options: Options) {
   sweep.unref();
   return {
     store,
+    attachSocket,
+    http,
     get port() {
       const a = http.address();
       return typeof a === "object" && a ? a.port : options.port;
